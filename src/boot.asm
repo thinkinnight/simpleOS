@@ -1,7 +1,7 @@
 org 07c00h	;load from 0000 7c00
-mov ax, cs	;ax = cs
-mov ds, ax	;ds = ax
-mov es, ax	;es = ax, so ds=es=cs, but where is cs get the value?
+mov ax, cs	;cs 代码段基地址
+mov ds, ax	;ds 数据段基地址=代码段基地址
+mov es, ax	;es 附加段基地址=代码段基地址
 call DispStr
 jmp $
 
