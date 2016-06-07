@@ -10,7 +10,7 @@ DispStr:
 	mov bp, ax		;es:bp = the start address of string
 	mov cx, 16		;cx=the length of string
 	mov ax, 01301h		;AH=13, AL=01h
-	mov bx, 000ch		;BH=0 BL=0Ch
+	mov bx, 0043h		;BH=0 BL=0Ch
 	mov dl, 0
 	int 10h			;call the interupt
 	ret
