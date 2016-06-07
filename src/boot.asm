@@ -1,20 +1,78 @@
+%macro Descriptor 3
+	dw	%2 & 0FFFFh
+	dw	%1 & 0FFFFh
+	db	(%1>>16)&0FFh
+	dw	((%2>>8)&0F00h)|(%3&0F0FFh)
+	db	(%1>>24)&0FFh
+%endmacro
+
+DA_32	equ 4000h
+DA_C	equ 98h
+DA_DRW	equ 92h
+
 org 07c00h	;load from 0000 7c00
-mov ax, cs	;cs 代码段基地址
-mov ds, ax	;ds 数据段基地址=代码段基地址
-mov es, ax	;es 附加段基地址=代码段基地址
-call DispStr
-jmp $
+	jmp	LABEL_BEGIN
 
-DispStr:
-	mov ax, BootMessage	;ax=the start address of string
-	mov bp, ax		;es:bp = the start address of string
-	mov cx, 16		;cx=the length of string
-	mov ax, 01301h		;AH=13, AL=01h
-	mov bx, 0043h		;BH=0 BL=0Ch
-	mov dl, 0
-	int 10h			;call the interupt
-	ret
+[SECTION .gdt]
+LABEL_GDT:		Descriptor	0,	0,	0
+LABEL_DESC_CODE32:	Descriptor	0,SegCode32Len-1, DA_C+DA_32
+LABEL_DESC_VIDEO:	Descriptor 0B8000h, 0ffffh, DA_DRW
 
-BootMessage:		db	"Hello, OS world!"
-times	510-($-$$)	db 	0
-dw	0xaa55
+GdtLen	equ	$-LABEL_GDT
+GdtPtr  dw	GdtLen-1
+	dd	0
+
+SelectorCode32	equ	LABEL_DESC_CODE32 - LABEL_GDT
+SelectorVideo	equ	LABEL_DESC_VIDEO - LABEL_GDT
+
+[SECTION .s16]
+[BITS 16]
+LABEL_BEGIN:
+	mov ax, cs
+	mov ds, ax
+	mov es, ax
+	mov ss, ax
+	mov sp, 0100h
+
+	xor eax, eax
+	mov ax, cs
+	shl eax, 4
+	add eax, LABEL_SEG_CODE32
+	mov word [LABEL_DESC_CODE32+2], ax
+	shr eax, 16
+	mov byte [LABEL_DESC_CODE32+4], al
+	mov byte [LABEL_DESC_CODE32+7], ah
+
+	xor eax, eax
+	mov ax, ds
+	shl eax, 4
+	add eax, LABEL_GDT
+	mov dword [GdtPtr+2], eax
+
+	lgdt [GdtPtr]
+
+	cli
+
+	in al, 92h
+	or al, 00000010b
+	out 92h, al
+
+	mov eax, cr0
+	or eax, 1
+	mov cr0, eax
+
+	jmp dword SelectorCode32:0
+
+[SECTION .s32]
+[BITS 32]
+LABEL_SEG_CODE32:
+	mov ax, SelectorVideo
+	mov gs, ax
+	mov edi, (80*11+79)*2
+	mov ah, 43h
+	mov al, 'P'
+	mov [gs:edi], ax
+
+	jmp $
+
+SegCode32Len equ $-LABEL_SEG_CODE32
