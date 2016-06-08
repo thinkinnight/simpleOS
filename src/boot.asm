@@ -98,13 +98,116 @@ LABEL_BEGIN:
 [SECTION .s32]
 [BITS 32]
 LABEL_SEG_CODE32:
+	mov ax, SelectorData
+	mov ds, ax
+	mov ax, SelectorTest
+	mov es, ax
 	mov ax, SelectorVideo
 	mov gs, ax
-	mov edi, (80*11+79)*2
-	mov ah, 43h
-	mov al, 'P'
-	mov [gs:edi], ax
 
-	jmp $
+	mov ax, SelectorStack
+	mov ss, ax
+
+	mov esp, TopOfStack
+
+	mov ah, 43h
+	xor esi, esi
+	xor edi, edi
+	mov esi, OffsetPMMessage
+	mov edi, (80*10+0)*2
+	cld
+.1:
+	lodsb
+	test al, al
+	jz .2
+	mov [gs:edi], ax
+	add edi, 2
+	jmp .1
+
+.2:
+	call DispReturn
+
+	call TestRead
+	call TestWrite
+	call TestRead
+
+	jmp SelectorCode16:0
+
+TestRead:
+	xor esi, esi
+	mov ecx, 8
+.loop:
+	mov al, [es:esi]
+	call DispAL
+	inc esi
+	loop .loop
+
+	call DispReturn
+	ret
+
+TestWrite:
+	push esi
+	push edi
+	xor esi, esi
+	xor edi, edi
+	mov esi, OffsetStrTest
+	cld
+.1:
+	lodsb
+	test al, al
+	jz .2
+	mov [es:edi],al
+	inc edi
+	jmp .1
+.2:
+	pop edi
+	pop esi
+	ret
+
+DispAL:
+	push ecx
+	push edx
+	
+	mov ah, 0Ch
+	mov dl, al
+	shr al, 4
+	mov ecx, 2
+.begin:
+	and al, 01111b
+	cmp al, 9
+	ja .1
+	add al, '0'
+	jmp .2
+.1:
+	sub al, 0Ah
+	add al, 'A'
+.2:
+	mov [gs:edi], ax
+	add edi, 2
+
+	mov al, dl
+	loop .begin
+	add edi, 2
+
+	pop edx
+	pop ecx
+
+	ret
+
+DispReturn:
+	push eax
+	push ebx
+	mov eax, edi
+	mov bl, 160
+	div bl
+	and eax, 0FFh
+	inc eax
+	mov bl, 160
+	mul bl
+	mov edi, eax
+	pop ebx
+	pop eax
+
+	ret
 
 SegCode32Len equ $-LABEL_SEG_CODE32
