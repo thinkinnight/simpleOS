@@ -95,6 +95,23 @@ LABEL_BEGIN:
 
 	jmp dword SelectorCode32:0
 
+LABEL_REAL_ENTRY:
+	mov ax, cs
+	mov ds, ax
+	mov es, ax
+	mov ss, ax
+	
+	mov sp, [SPValueInRealMode]
+	
+	in al, 92h
+	and al, 11111101b
+	out 92h, al
+
+	sti
+
+	mov ax, 4c00h
+	int 21h
+
 [SECTION .s32]
 [BITS 32]
 LABEL_SEG_CODE32:
@@ -211,3 +228,23 @@ DispReturn:
 	ret
 
 SegCode32Len equ $-LABEL_SEG_CODE32
+
+[SECTION .s16code]
+ALIGN 32
+[BITS 16]
+LABEL_SEG_CODE16:
+	mov ax, SelectorNormal
+	mov ds, ax
+	mov es, ax
+	mov fs, ax
+	mov gs, ax
+	mov ss, ax
+
+	mov eax, cr0
+	and al, 11111110b
+	mov cr0, eax
+
+LABEL_GO_BACK_TO_REAL:
+	jmp 0:LABEL_REAL_ENTRY
+
+Code16Len	equ $-LABEL_SEG_CODE16
