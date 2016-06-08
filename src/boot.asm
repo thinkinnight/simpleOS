@@ -10,7 +10,8 @@ DA_32	equ 4000h
 DA_C	equ 98h
 DA_DRW	equ 92h
 
-org 07c00h	;load from 0000 7c00
+;org 07c00h	;load from 0000 7c00
+org 0100h	;load from 0000 0100
 	jmp	LABEL_BEGIN
 
 [SECTION .gdt]

@@ -3,9 +3,9 @@ megs: 32
 romimage: file=/home/cnyao/Tools/bochs-2.6.8/bios/BIOS-bochs-latest
 vgaromimage: file=/usr/share/vgabios/vgabios.bin
 
-floppya: 1_44=a.img, status=inserted
-
-boot: floppy
+floppya: 1_44=freedos.img, status=inserted
+floppyb: 1_44=a.img, status=inserted
+boot: a
 
 log: bochsout.txt
 
