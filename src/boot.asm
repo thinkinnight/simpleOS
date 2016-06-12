@@ -9,12 +9,15 @@
 DA_32	equ 4000h
 
 DA_DPL1	equ 20h
+DA_DPL3	equ 60h
 
 DA_C	equ 98h
 DA_DRW	equ 92h
 DA_DRWA equ 93h
 
 DA_LDT	equ 82h
+
+SA_RPL3	equ 3
 
 SA_TIL	equ 4
 
@@ -40,7 +43,7 @@ GdtPtr  dw	GdtLen-1
 SelectorNormal	equ	LABEL_DESC_NORMAL - LABEL_GDT
 SelectorCode32	equ	LABEL_DESC_CODE32 - LABEL_GDT
 SelectorCode16	equ	LABEL_DESC_CODE16 - LABEL_GDT
-SelectorData	equ	LABEL_DESC_DATA - LABEL_GDT
+SelectorData	equ	LABEL_DESC_DATA - LABEL_GDT+SA_RPL3
 SelectorStack	equ	LABEL_DESC_STACK - LABEL_GDT
 SelectorTest	equ	LABEL_DESC_TEST - LABEL_GDT
 SelectorVideo	equ	LABEL_DESC_VIDEO - LABEL_GDT
