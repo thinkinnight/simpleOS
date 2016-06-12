@@ -11,6 +11,10 @@ DA_C	equ 98h
 DA_DRW	equ 92h
 DA_DRWA equ 93h
 
+DA_LDT	equ 82h
+
+SA_TIL	equ 4
+
 ;org 07c00h	;load from 0000 7c00
 org 0100h	;load from 0000 0100
 	jmp	LABEL_BEGIN
@@ -24,6 +28,7 @@ LABEL_DESC_DATA:	Descriptor	0, DataLen-1, DA_DRW
 LABEL_DESC_STACK:	Descriptor	0, TopOfStack, DA_DRWA+DA_32
 LABEL_DESC_TEST:	Descriptor 0500000h, 0ffffh, DA_DRW
 LABEL_DESC_VIDEO:	Descriptor 0B8000h, 0ffffh, DA_DRW
+LABEL_DESC_LDT:		Descriptor 	0, LDTLen-1, DA_LDT
 
 GdtLen	equ	$-LABEL_GDT
 GdtPtr  dw	GdtLen-1
@@ -36,6 +41,7 @@ SelectorData	equ	LABEL_DESC_DATA - LABEL_GDT
 SelectorStack	equ	LABEL_DESC_STACK - LABEL_GDT
 SelectorTest	equ	LABEL_DESC_TEST - LABEL_GDT
 SelectorVideo	equ	LABEL_DESC_VIDEO - LABEL_GDT
+SelectorLDT	equ	LABEL_DESC_LDT - LABEL_GDT
 
 [SECTION .data1]
 ALIGN 32
@@ -109,6 +115,24 @@ LABEL_BEGIN:
 	xor eax, eax
 	mov ax, ds
 	shl eax, 4
+	add eax, LABEL_LDT
+	mov word [LABEL_DESC_LDT+2], ax
+	shr eax, 16
+	mov byte [LABEL_DESC_LDT+4], al
+	mov byte [LABEL_DESC_LDT+7], ah
+
+	xor eax, eax
+	mov ax, ds
+	shl eax, 4
+	add eax, LABEL_CODE_A
+	mov word [LABEL_LDT_DESC_CODEA+2], ax
+	shr eax, 16
+	mov byte [LABEL_LDT_DESC_CODEA+4], al
+	mov byte [LABEL_LDT_DESC_CODEA+7], ah
+
+	xor eax, eax
+	mov ax, ds
+	shl eax, 4
 	add eax, LABEL_GDT
 	mov dword [GdtPtr+2], eax
 
@@ -175,72 +199,9 @@ LABEL_SEG_CODE32:
 .2:
 	call DispReturn
 
-	call TestRead
-	call TestWrite
-	call TestRead
-
-	jmp SelectorCode16:0
-
-TestRead:
-	xor esi, esi
-	mov ecx, 26
-.loop:
-	mov al, [es:esi]
-	call DispAL
-	inc esi
-	loop .loop
-
-	call DispReturn
-	ret
-
-TestWrite:
-	push esi
-	push edi
-	xor esi, esi
-	xor edi, edi
-	mov esi, OffsetStrTest
-	cld
-.1:
-	lodsb
-	test al, al
-	jz .2
-	mov [es:edi],al
-	inc edi
-	jmp .1
-.2:
-	pop edi
-	pop esi
-	ret
-
-DispAL:
-	push ecx
-	push edx
-	
-	mov ah, 0Ch
-	mov dl, al
-	shr al, 4
-	mov ecx, 2
-.begin:
-	and al, 01111b
-	cmp al, 9
-	ja .1
-	add al, '0'
-	jmp .2
-.1:
-	sub al, 0Ah
-	add al, 'A'
-.2:
-	mov [gs:edi], ax
-	add edi, 2
-
-	mov al, dl
-	loop .begin
-	add edi, 2
-
-	pop edx
-	pop ecx
-
-	ret
+	mov ax, SelectorLDT
+	lldt ax
+	jmp SelectorLDTCodeA:0
 
 DispReturn:
 	push eax
@@ -279,3 +240,28 @@ LABEL_GO_BACK_TO_REAL:
 	jmp 0:LABEL_REAL_ENTRY
 
 Code16Len	equ $-LABEL_SEG_CODE16
+
+[SECTION .ldt]
+ALIGN 32
+LABEL_LDT:
+LABEL_LDT_DESC_CODEA:	Descriptor	0, CodeALen-1, DA_C+DA_32
+
+LDTLen	equ	$-LABEL_LDT
+
+SelectorLDTCodeA	equ	LABEL_LDT_DESC_CODEA - LABEL_LDT+SA_TIL
+
+[SECTION .la]
+ALIGN 32
+[BITS 32]
+LABEL_CODE_A:
+	mov ax, SelectorVideo
+	mov gs, ax
+
+	mov edi, (80*12+0)*2
+	mov ah, 0ch
+	mov al, 'L'
+	mov [gs:edi], ax
+
+	jmp SelectorCode16:0
+
+CodeALen	equ	$-LABEL_CODE_A
