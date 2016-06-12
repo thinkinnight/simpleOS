@@ -6,8 +6,16 @@
 	db	(%1>>24)&0FFh
 %endmacro
 
+%macro Gate 4
+	dw (%2 & 0FFFFh)
+	dw %1
+	dw (%3 & 1Fh) | ((%4<<8) & 0FF00h)
+	dw ((%2>>16) & 0FFFFh)
+%endmacro
+
 DA_32	equ 4000h
 
+DA_DPL0	equ 00h
 DA_DPL1	equ 20h
 DA_DPL3	equ 60h
 
@@ -16,7 +24,9 @@ DA_DRW	equ 92h
 DA_DRWA equ 93h
 
 DA_LDT	equ 82h
+DA_386CGate	equ 8Ch
 
+SA_RPL1 equ 1
 SA_RPL3	equ 3
 
 SA_TIL	equ 4
@@ -30,11 +40,12 @@ LABEL_GDT:		Descriptor	0,	0,	0
 LABEL_DESC_NORMAL:	Descriptor	0, 0ffffh, DA_DRW
 LABEL_DESC_CODE32:	Descriptor	0,SegCode32Len-1, DA_C+DA_32
 LABEL_DESC_CODE16:	Descriptor	0, 0ffffh, DA_C
-LABEL_DESC_DATA:	Descriptor	0, DataLen-1, DA_DRW+DA_DPL1
+LABEL_DESC_DATA:	Descriptor	0, DataLen-1, DA_DRW
 LABEL_DESC_STACK:	Descriptor	0, TopOfStack, DA_DRWA+DA_32
 LABEL_DESC_TEST:	Descriptor 0500000h, 0ffffh, DA_DRW
 LABEL_DESC_VIDEO:	Descriptor 0B8000h, 0ffffh, DA_DRW
 LABEL_DESC_LDT:		Descriptor 	0, LDTLen-1, DA_LDT
+LABEL_DESC_CODE_DEST:	Descriptor	0, SegCodeDestLen-1, DA_C+DA_32
 
 GdtLen	equ	$-LABEL_GDT
 GdtPtr  dw	GdtLen-1
@@ -43,11 +54,16 @@ GdtPtr  dw	GdtLen-1
 SelectorNormal	equ	LABEL_DESC_NORMAL - LABEL_GDT
 SelectorCode32	equ	LABEL_DESC_CODE32 - LABEL_GDT
 SelectorCode16	equ	LABEL_DESC_CODE16 - LABEL_GDT
-SelectorData	equ	LABEL_DESC_DATA - LABEL_GDT+SA_RPL3
+SelectorData	equ	LABEL_DESC_DATA - LABEL_GDT
 SelectorStack	equ	LABEL_DESC_STACK - LABEL_GDT
 SelectorTest	equ	LABEL_DESC_TEST - LABEL_GDT
 SelectorVideo	equ	LABEL_DESC_VIDEO - LABEL_GDT
 SelectorLDT	equ	LABEL_DESC_LDT - LABEL_GDT
+SelectorCodeDest equ	LABEL_DESC_CODE_DEST - LABEL_GDT
+
+SelectorCallGateTest equ	LABEL_CALL_GATE_TEST - LABEL_GDT
+
+LABEL_CALL_GATE_TEST:	Gate SelectorCodeDest,	0,	0,	DA_386CGate+DA_DPL0
 
 [SECTION .data1]
 ALIGN 32
@@ -137,6 +153,15 @@ LABEL_BEGIN:
 	mov byte [LABEL_LDT_DESC_CODEA+7], ah
 
 	xor eax, eax
+	mov ax, cs
+	shl eax, 4
+	add eax, LABEL_SEG_CODE_DEST
+	mov word [LABEL_DESC_CODE_DEST+2], ax
+	shr eax, 16
+	mov byte [LABEL_DESC_CODE_DEST+4], al
+	mov byte [LABEL_DESC_CODE_DEST+7], ah
+
+	xor eax, eax
 	mov ax, ds
 	shl eax, 4
 	add eax, LABEL_GDT
@@ -204,6 +229,7 @@ LABEL_SEG_CODE32:
 
 .2:
 	call DispReturn
+	call SelectorCallGateTest:0
 
 	mov ax, SelectorLDT
 	lldt ax
@@ -271,3 +297,20 @@ LABEL_CODE_A:
 	jmp SelectorCode16:0
 
 CodeALen	equ	$-LABEL_CODE_A
+
+[SECTION .sdest]
+[BITS 32]
+
+LABEL_SEG_CODE_DEST:
+	mov ax, SelectorVideo
+	mov gs, ax
+
+	mov edi, (80*13+0)*2
+	mov ah, 0ch
+	mov al, 'C'
+	mov [gs:edi], ax
+
+	retf
+
+SegCodeDestLen equ $-LABEL_SEG_CODE_DEST
+
