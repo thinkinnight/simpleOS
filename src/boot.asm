@@ -66,6 +66,18 @@ LABEL_BEGIN:
 	mov ss, ax
 	mov sp, 0100h
 
+	mov [LABEL_GO_BACK_TO_REAL+3], ax
+	mov [SPValueInRealMode], sp
+
+	mov ax, cs
+	movzx eax, ax
+	shl eax, 4
+	add eax, LABEL_SEG_CODE16
+	mov word [LABEL_DESC_CODE16+2], ax
+	shr eax, 16
+	mov byte [LABEL_DESC_CODE16+4], al
+	mov byte [LABEL_DESC_CODE16+7], ah
+
 	xor eax, eax
 	mov ax, cs
 	shl eax, 4
@@ -74,6 +86,25 @@ LABEL_BEGIN:
 	shr eax, 16
 	mov byte [LABEL_DESC_CODE32+4], al
 	mov byte [LABEL_DESC_CODE32+7], ah
+
+	xor	eax, eax
+	mov	ax, ds
+	shl	eax, 4
+	add	eax, LABEL_DATA
+	mov	word [LABEL_DESC_DATA + 2], ax
+	shr	eax, 16
+	mov	byte [LABEL_DESC_DATA + 4], al
+	mov	byte [LABEL_DESC_DATA + 7], ah
+
+	; 初始化堆栈段描述符
+	xor	eax, eax
+	mov	ax, ds
+	shl	eax, 4
+	add	eax, LABEL_STACK
+	mov	word [LABEL_DESC_STACK + 2], ax
+	shr	eax, 16
+	mov	byte [LABEL_DESC_STACK + 4], al
+	mov	byte [LABEL_DESC_STACK + 7], ah
 
 	xor eax, eax
 	mov ax, ds
