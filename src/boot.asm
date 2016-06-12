@@ -7,6 +7,9 @@
 %endmacro
 
 DA_32	equ 4000h
+
+DA_DPL1	equ 20h
+
 DA_C	equ 98h
 DA_DRW	equ 92h
 DA_DRWA equ 93h
@@ -24,7 +27,7 @@ LABEL_GDT:		Descriptor	0,	0,	0
 LABEL_DESC_NORMAL:	Descriptor	0, 0ffffh, DA_DRW
 LABEL_DESC_CODE32:	Descriptor	0,SegCode32Len-1, DA_C+DA_32
 LABEL_DESC_CODE16:	Descriptor	0, 0ffffh, DA_C
-LABEL_DESC_DATA:	Descriptor	0, DataLen-1, DA_DRW
+LABEL_DESC_DATA:	Descriptor	0, DataLen-1, DA_DRW+DA_DPL1
 LABEL_DESC_STACK:	Descriptor	0, TopOfStack, DA_DRWA+DA_32
 LABEL_DESC_TEST:	Descriptor 0500000h, 0ffffh, DA_DRW
 LABEL_DESC_VIDEO:	Descriptor 0B8000h, 0ffffh, DA_DRW
