@@ -5,5 +5,7 @@ tag管理：
 - jmp_protectionmode 代码2，从实模式跳转到保护模式
 - write_large_memory 代码3，实验保护模式下，读写大内存地址，并跳回实模式
 - ldt 代码4，增加了LDT
+- cgate 代码5，调用门，但是没有特权转移
+
 
 
