@@ -16,8 +16,8 @@
 DA_32	equ 4000h
 
 DA_DPL0	equ 00h
-DA_DPL1	equ 20h
-DA_DPL3	equ 60h
+;DA_DPL1	equ 20h
+;DA_DPL3	equ 60h
 
 DA_C	equ 98h
 DA_DRW	equ 92h
@@ -46,6 +46,7 @@ LABEL_DESC_TEST:	Descriptor 0500000h, 0ffffh, DA_DRW
 LABEL_DESC_VIDEO:	Descriptor 0B8000h, 0ffffh, DA_DRW
 LABEL_DESC_LDT:		Descriptor 	0, LDTLen-1, DA_LDT
 LABEL_DESC_CODE_DEST:	Descriptor	0, SegCodeDestLen-1, DA_C+DA_32
+LABEL_CALL_GATE_TEST:	Gate SelectorCodeDest,	0,	0,	DA_386CGate+DA_DPL0
 
 GdtLen	equ	$-LABEL_GDT
 GdtPtr  dw	GdtLen-1
@@ -63,7 +64,6 @@ SelectorCodeDest equ	LABEL_DESC_CODE_DEST - LABEL_GDT
 
 SelectorCallGateTest equ	LABEL_CALL_GATE_TEST - LABEL_GDT
 
-LABEL_CALL_GATE_TEST:	Gate SelectorCodeDest,	0,	0,	DA_386CGate+DA_DPL0
 
 [SECTION .data1]
 ALIGN 32
@@ -289,7 +289,7 @@ LABEL_CODE_A:
 	mov ax, SelectorVideo
 	mov gs, ax
 
-	mov edi, (80*12+0)*2
+	mov edi, (80*13+0)*2
 	mov ah, 0ch
 	mov al, 'L'
 	mov [gs:edi], ax
@@ -305,7 +305,7 @@ LABEL_SEG_CODE_DEST:
 	mov ax, SelectorVideo
 	mov gs, ax
 
-	mov edi, (80*13+0)*2
+	mov edi, (80*12+0)*2
 	mov ah, 0ch
 	mov al, 'C'
 	mov [gs:edi], ax
