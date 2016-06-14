@@ -58,10 +58,36 @@ PMMessage:		db	"In Protect Mode now.", 0
 OffsetPMMessage		equ	PMMessage - $$
 StrTest:		db	"ABCDEFGHIJKLMNOPQRSTUVWXYZ", 0
 OffsetStrTest		equ	StrTest-$$
-DataLen			equ	$-LABEL_DATA
+
+MemChkBuf		equ	_MemChkBuf - $$
+dwMCRNumber		equ	_dwMCRNumber - $$
+dwMemSize		equ	_dwMemSize - $$
+dwDispPos		equ	_dwDispPos - $$
+szRAMSize		equ	_szRAMSize - $$
+szPMMessage		equ	_szPMMessage - $$
+szMemChkTitle		equ	_szMemChkTitle - $$
+ARDStruct		equ	_ARDStruct - $$
+	dwBaseAddrLow	equ	_dwBaseAddrLow - $$
+	dwBaseAddrHigh	equ	_dwBaseAddrHigh - $$
+	dwLengthLow	equ	_dwLengthLow - $$
+	dwLengthHigh	equ	_dwLengthHigh - $$
+	dwType		equ	_dwType - $$
 
 _MemChkBuf:	times 256 db 0
+_szRAMSize:	db "RAM size:", 0
 _dwMCRNumber:	dd 0
+_dwMemSize:	dd 0
+_dwDispPos:	dd 0
+_szPMMessage:	db "In Protect Mode now. ^-^", 0Ah, 0Ah, 0
+_szMemChkTitle:	db "BaseAddrL BaseAddrH LengthLow LengthHigh    Type", 0Ah, 0
+_ARDStruct:
+	_dwBaseAddrLow:		dd 0
+	_dwBaseAddrHigh:	dd 0
+	_dwLengthLow:		dd 0
+	_dwLengthHigh:		dd 0
+	_dwType:		dd 0
+
+DataLen			equ	$-LABEL_DATA
 
 [SECTION .gs]
 ALIGN 32
@@ -192,24 +218,86 @@ LABEL_SEG_CODE32:
 
 	mov esp, TopOfStack
 
-	mov ah, 43h
-	xor esi, esi
-	xor edi, edi
-	mov esi, OffsetPMMessage
-	mov edi, (80*10+0)*2
-	cld
+	push szPMMessage
+	call DispStr
+	add esp, 4
+	
+	push szMemChkTitle
+	call DispStr
+	add esp, 4
+
+	call DispMemSize
+	call SetupPaging
+
+	jmp SelectorCode16:0
+
+DispInt:
+	mov eax, [esp+4]
+	shr eax, 24
+	call DispAL
+
+	mov eax, [esp+4]
+	shr eax, 16
+	call DispAL
+
+	mov eax, [esp+4]
+	shr eax, 8
+	call DispAL
+
+	mov eax, [esp+4]
+	call DispAL
+
+	mov ah, 07h
+	mov al, 'h'
+	push edi
+	mov edi, [dwDispPos]
+	mov [gs:edi], ax
+	add edi, 4
+	mov [dwDispPos], edi
+	pop edi
+
+	ret
+
+DispStr:
+	push ebp
+	mov ebp, esp
+	push ebx
+	push esi
+	push edi
+
+	mov esi, [ebp+8]
+	mov edi, [dwDispPos]
+	mov ah, 0Fh
 .1:
 	lodsb
 	test al, al
 	jz .2
+	cmp al, 0Ah
+	jnz .3
+	push eax
+	mov eax, edi
+	mov bl, 160
+	div bl
+	and eax, 0FFh
+	inc eax
+	mov bl, 160
+	mul bl
+	mov edi, eax
+	pop eax
+	jmp .1
+.3:
 	mov [gs:edi], ax
 	add edi, 2
 	jmp .1
 
 .2:
-	call DispReturn
+	mov [dwDispPos], edi
 
-	jmp SelectorCode16:0
+	pop edi
+	pop esi
+	pop ebx
+	pop ebp
+	ret
 
 SetupPaging:
 	mov ax, SelectorPageDir
@@ -281,8 +369,11 @@ TestWrite:
 DispAL:
 	push ecx
 	push edx
+	push edi
+
+	mov edi, [dwDispPos]
 	
-	mov ah, 0Ch
+	mov ah, 0Fh
 	mov dl, al
 	shr al, 4
 	mov ecx, 2
@@ -301,8 +392,11 @@ DispAL:
 
 	mov al, dl
 	loop .begin
-	add edi, 2
+	;add edi, 2
 
+	mov [dwDispPos], edi
+
+	pop edi
 	pop edx
 	pop ecx
 
@@ -345,3 +439,46 @@ LABEL_GO_BACK_TO_REAL:
 	jmp 0:LABEL_REAL_ENTRY
 
 Code16Len	equ $-LABEL_SEG_CODE16
+
+DispMemSize:
+	push esi
+	push edi
+	push ecx
+
+	mov esi, MemChkBuf
+	mov ecx, [dwMCRNumber]
+.loop:
+	mov edx, 5
+	mov edi, ARDStruct
+.1:
+	push dword [esi]
+	call DispInt
+	pop eax
+	stosd
+	add esi, 4
+	dec edx
+	cmp edx, 0
+	jnz .1
+	call DispReturn
+	cmp dword [dwType], 1
+	jne .2
+	mov eax, [dwBaseAddrLow]
+	add eax, [dwLengthLow]
+	cmp eax, [dwMemSize]
+	jb .2
+	mov [dwMemSize], eax
+.2:
+	loop .loop
+	call DispReturn
+	push szRAMSize
+	call DispStr
+	add esp, 4
+
+	push dword [dwMemSize]
+	call DispInt
+	add esp, 4
+
+	pop ecx
+	pop edi
+	pop esi
+	ret
