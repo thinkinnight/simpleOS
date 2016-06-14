@@ -7,6 +7,7 @@ tag管理：
 - ldt 代码4，增加了LDT
 - cgate 代码5，调用门，但是没有特权转移
 - 06_ring3 进入ring3
+- 07_ring3_gatecall 在ring3做调用门,调用ring0
 
 
 
