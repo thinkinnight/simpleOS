@@ -8,6 +8,7 @@ tag管理：
 - cgate 代码5，调用门，但是没有特权转移
 - 06_ring3 进入ring3
 - 07_ring3_gatecall 在ring3做调用门,调用ring0
+- 08_ldt_backtoreal 使用LDT局部任务返回实模式
 
 
 
