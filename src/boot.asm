@@ -25,6 +25,7 @@ DA_DRWA equ 93h
 
 DA_LDT	equ 82h
 DA_386CGate	equ 8Ch
+DA_386TSS	equ 89h
 
 SA_RPL1 equ 1
 SA_RPL3	equ 3
@@ -48,7 +49,8 @@ LABEL_DESC_LDT:		Descriptor 	0, LDTLen-1, DA_LDT
 LABEL_DESC_CODE_DEST:	Descriptor	0, SegCodeDestLen-1, DA_C+DA_32
 LABEL_DESC_CODE_RING3:	Descriptor	0, SegCodeRing3Len-1, DA_C+DA_32+DA_DPL3
 LABEL_DESC_STACK3:	Descriptor	0, TopOfStack3, DA_DRWA+DA_32+DA_DPL3
-LABEL_CALL_GATE_TEST:	Gate 		SelectorCodeDest,	0,	0,	DA_386CGate+DA_DPL0
+LABEL_CALL_GATE_TEST:	Gate 		SelectorCodeDest,	0,	0,	DA_386CGate+DA_DPL3
+LABEL_DESC_TSS:		Descriptor	0, TSSLen-1,	DA_386TSS
 
 GdtLen	equ	$-LABEL_GDT
 GdtPtr  dw	GdtLen-1
@@ -65,8 +67,9 @@ SelectorLDT	equ	LABEL_DESC_LDT - LABEL_GDT
 SelectorCodeDest equ	LABEL_DESC_CODE_DEST - LABEL_GDT
 SelectorCodeRing3 equ	LABEL_DESC_CODE_RING3 - LABEL_GDT+SA_RPL3
 SelectorStack3	equ	LABEL_DESC_STACK3 - LABEL_GDT+SA_RPL3
+SelectorTSS	equ	LABEL_DESC_TSS - LABEL_GDT
 
-SelectorCallGateTest equ	LABEL_CALL_GATE_TEST - LABEL_GDT
+SelectorCallGateTest equ	LABEL_CALL_GATE_TEST - LABEL_GDT + SA_RPL3
 
 
 [SECTION .data1]
@@ -137,6 +140,16 @@ LABEL_BEGIN:
 	shr	eax, 16
 	mov	byte [LABEL_DESC_STACK + 4], al
 	mov	byte [LABEL_DESC_STACK + 7], ah
+
+	; 初始化TSS描述符
+	xor eax, eax
+	mov ax, ds
+	shl eax, 4
+	add eax, LABEL_TSS
+	mov word [LABEL_DESC_TSS+2], ax
+	shr eax, 16
+	mov byte [LABEL_DESC_TSS+4], al
+	mov byte [LABEL_DESC_TSS+7], ah
 
 	xor eax, eax
 	mov ax, ds
@@ -252,6 +265,9 @@ LABEL_SEG_CODE32:
 .2:
 	call DispReturn
 
+	mov ax, SelectorTSS
+	ltr ax
+
 	push SelectorStack3
 	push TopOfStack3
 	push SelectorCodeRing3
@@ -362,5 +378,42 @@ LABEL_CODE_RING3:
 	mov al, '3'
 	mov [gs:edi], ax
 
+	call SelectorCallGateTest:0
+
 	jmp $
 SegCodeRing3Len equ $-LABEL_CODE_RING3
+
+[SECTION .tss]
+ALIGN 32
+[BITS 32]
+LABEL_TSS:
+	DD 0
+	DD TopOfStack		;ring 0 stack
+	DD SelectorStack
+	DD 0			;ring 1 stack
+	DD 0
+	DD 0			;ring 2 stack
+	DD 0
+	DD 0			;CR3
+	DD 0			;EIP
+	DD 0			;EFLAGS
+	DD 0			;EAX
+	DD 0			;ECX
+	DD 0			;EDX
+	DD 0			;EBX
+	DD 0			;ESP
+	DD 0			;EBP
+	DD 0			;ESI
+	DD 0			;EDI
+	DD 0			;ES
+	DD 0			;CS
+	DD 0			;SS
+	DD 0			;DS
+	DD 0			;FS
+	DD 0			;GS
+	DD 0			;LDT
+	DW 0			;
+	DW $-LABEL_TSS+2	;I/O
+	DB 0ffh			;
+TSSLen	equ	$-LABEL_TSS
+	
