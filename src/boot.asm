@@ -10,10 +10,18 @@ DA_32	equ 4000h
 DA_C	equ 98h
 DA_DRW	equ 92h
 DA_DRWA equ 93h
+DA_LIMIT_4K equ 8000h
+
+PG_P	equ 1
+PG_USU	equ 4
+PG_RWW	equ 2
 
 ;org 07c00h	;load from 0000 7c00
 org 0100h	;load from 0000 0100
 	jmp	LABEL_BEGIN
+
+PageDirBase	equ	200000h
+PageTblBase	equ	201000h
 
 [SECTION .gdt]
 LABEL_GDT:		Descriptor	0,	0,	0
@@ -24,6 +32,8 @@ LABEL_DESC_DATA:	Descriptor	0, DataLen-1, DA_DRW
 LABEL_DESC_STACK:	Descriptor	0, TopOfStack, DA_DRWA+DA_32
 LABEL_DESC_TEST:	Descriptor 0500000h, 0ffffh, DA_DRW
 LABEL_DESC_VIDEO:	Descriptor 0B8000h, 0ffffh, DA_DRW
+LABEL_DESC_PAGE_DIR:	Descriptor PageDirBase, 4095, DA_DRW
+LABEL_DESC_PAGE_TBL:	Descriptor PageTblBase, 1023, DA_DRW|DA_LIMIT_4K
 
 GdtLen	equ	$-LABEL_GDT
 GdtPtr  dw	GdtLen-1
@@ -36,6 +46,8 @@ SelectorData	equ	LABEL_DESC_DATA - LABEL_GDT
 SelectorStack	equ	LABEL_DESC_STACK - LABEL_GDT
 SelectorTest	equ	LABEL_DESC_TEST - LABEL_GDT
 SelectorVideo	equ	LABEL_DESC_VIDEO - LABEL_GDT
+SelectorPageDir	equ	LABEL_DESC_PAGE_DIR - LABEL_GDT
+SelectorPageTbl	equ	LABEL_DESC_PAGE_TBL - LABEL_GDT
 
 [SECTION .data1]
 ALIGN 32
@@ -146,6 +158,8 @@ LABEL_REAL_ENTRY:
 [SECTION .s32]
 [BITS 32]
 LABEL_SEG_CODE32:
+	call SetupPaging
+
 	mov ax, SelectorData
 	mov ds, ax
 	mov ax, SelectorTest
@@ -175,11 +189,43 @@ LABEL_SEG_CODE32:
 .2:
 	call DispReturn
 
-	call TestRead
-	call TestWrite
-	call TestRead
-
 	jmp SelectorCode16:0
+
+SetupPaging:
+	mov ax, SelectorPageDir
+	mov es, ax
+	mov ecx, 1024
+	xor edi, edi
+	xor eax, eax
+	mov eax, PageTblBase | PG_P | PG_USU | PG_RWW
+.1:
+	stosd
+	add eax, 4096
+	loop .1
+
+	mov ax, SelectorPageTbl
+	mov es, ax
+	mov ecx, 1024*1024
+	xor edi, edi
+	xor eax, eax
+	mov eax, PG_P | PG_USU | PG_RWW
+
+.2:
+	stosd
+	add eax, 4096
+	loop .2
+
+	mov eax, PageDirBase
+	mov cr3, eax
+	mov eax, cr0
+	or eax, 80000000h
+	mov cr0, eax
+	jmp short .3
+
+.3:
+	nop
+
+	ret
 
 TestRead:
 	xor esi, esi
