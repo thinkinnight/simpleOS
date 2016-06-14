@@ -355,7 +355,11 @@ LABEL_SEG_CODE_DEST:
 	mov al, 'C'
 	mov [gs:edi], ax
 
-	retf
+	mov ax, SelectorLDT
+	lldt ax
+
+	jmp SelectorLDTCodeA:0
+	;retf
 
 SegCodeDestLen equ $-LABEL_SEG_CODE_DEST
 
