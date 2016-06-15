@@ -216,7 +216,7 @@ LABEL_SEG_CODE32:
 
 	mov esp, TopOfStack
 
-	xchg bx, bx
+	;xchg bx, bx
 
 	push szPMMessage
 	call DispStr
@@ -226,7 +226,7 @@ LABEL_SEG_CODE32:
 	call DispStr
 	add esp, 4
 
-	xchg bx, bx
+	;xchg bx, bx
 
 	call DispMemSize
 	call SetupPaging
