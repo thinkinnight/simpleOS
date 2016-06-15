@@ -56,6 +56,7 @@ LABEL_DATA:
 SPValueInRealMode	dw	0
 PMMessage:		db	"In Protect Mode now.", 0
 OffsetPMMessage		equ	PMMessage - $$
+szReturn		equ	_szReturn - $$
 StrTest:		db	"ABCDEFGHIJKLMNOPQRSTUVWXYZ", 0
 OffsetStrTest		equ	StrTest-$$
 
@@ -75,6 +76,7 @@ ARDStruct		equ	_ARDStruct - $$
 
 _MemChkBuf:	times 256 db 0
 _szRAMSize:	db "RAM size:", 0
+_szReturn:	db 0Ah, 0
 _dwMCRNumber:	dd 0
 _dwMemSize:	dd 0
 _dwDispPos:	dd 0
@@ -405,18 +407,9 @@ DispAL:
 	ret
 
 DispReturn:
-	push eax
-	push ebx
-	mov eax, edi
-	mov bl, 160
-	div bl
-	and eax, 0FFh
-	inc eax
-	mov bl, 160
-	mul bl
-	mov edi, eax
-	pop ebx
-	pop eax
+	push szReturn
+	call DispStr
+	add esp, 4
 
 	ret
 
