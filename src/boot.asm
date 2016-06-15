@@ -204,11 +204,9 @@ LABEL_REAL_ENTRY:
 [SECTION .s32]
 [BITS 32]
 LABEL_SEG_CODE32:
-	call SetupPaging
-
 	mov ax, SelectorData
 	mov ds, ax
-	mov ax, SelectorTest
+	mov ax, SelectorData
 	mov es, ax
 	mov ax, SelectorVideo
 	mov gs, ax
@@ -218,6 +216,8 @@ LABEL_SEG_CODE32:
 
 	mov esp, TopOfStack
 
+	xchg bx, bx
+
 	push szPMMessage
 	call DispStr
 	add esp, 4
@@ -225,6 +225,8 @@ LABEL_SEG_CODE32:
 	push szMemChkTitle
 	call DispStr
 	add esp, 4
+
+	xchg bx, bx
 
 	call DispMemSize
 	call SetupPaging
@@ -418,28 +420,6 @@ DispReturn:
 
 	ret
 
-SegCode32Len equ $-LABEL_SEG_CODE32
-
-[SECTION .s16code]
-ALIGN 32
-[BITS 16]
-LABEL_SEG_CODE16:
-	mov ax, SelectorNormal
-	mov ds, ax
-	mov es, ax
-	mov fs, ax
-	mov gs, ax
-	mov ss, ax
-
-	mov eax, cr0
-	and eax, 7FFFFFFEh
-	mov cr0, eax
-
-LABEL_GO_BACK_TO_REAL:
-	jmp 0:LABEL_REAL_ENTRY
-
-Code16Len	equ $-LABEL_SEG_CODE16
-
 DispMemSize:
 	push esi
 	push edi
@@ -482,3 +462,26 @@ DispMemSize:
 	pop edi
 	pop esi
 	ret
+
+SegCode32Len equ $-LABEL_SEG_CODE32
+
+[SECTION .s16code]
+ALIGN 32
+[BITS 16]
+LABEL_SEG_CODE16:
+	mov ax, SelectorNormal
+	mov ds, ax
+	mov es, ax
+	mov fs, ax
+	mov gs, ax
+	mov ss, ax
+
+	mov eax, cr0
+	and eax, 7FFFFFFEh
+	mov cr0, eax
+
+LABEL_GO_BACK_TO_REAL:
+	jmp 0:LABEL_REAL_ENTRY
+
+Code16Len	equ $-LABEL_SEG_CODE16
+

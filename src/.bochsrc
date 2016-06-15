@@ -12,3 +12,5 @@ boot: a
 mouse: enabled=0
 
 keyboard: keymap=/home/cnyao/Tools/bochs-2.6.8/gui/keymaps/x11-pc-us.map
+
+magic_break: enabled=1
