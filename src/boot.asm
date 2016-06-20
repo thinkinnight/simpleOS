@@ -8,6 +8,7 @@
 
 DA_32	equ 4000h
 DA_C	equ 98h
+DA_CR	equ 9Ah
 DA_DRW	equ 92h
 DA_DRWA equ 93h
 DA_LIMIT_4K equ 8000h
@@ -20,20 +21,27 @@ PG_RWW	equ 2
 org 0100h	;load from 0000 0100
 	jmp	LABEL_BEGIN
 
-PageDirBase	equ	200000h
-PageTblBase	equ	201000h
+PageDirBase0	equ	200000h
+PageTblBase0	equ	201000h
+PageDirBase1	equ	210000h
+PageTblBase1	equ	211000h
+
+LinearAddrDemo	equ	00401000h
+ProcFoo		equ	00401000h
+ProcBar		equ	00501000h
+ProcPagingDemo	equ	00301000h
 
 [SECTION .gdt]
 LABEL_GDT:		Descriptor	0,	0,	0
 LABEL_DESC_NORMAL:	Descriptor	0, 0ffffh, DA_DRW
-LABEL_DESC_CODE32:	Descriptor	0,SegCode32Len-1, DA_C+DA_32
+LABEL_DESC_CODE32:	Descriptor	0,SegCode32Len-1, DA_CR|DA_32
 LABEL_DESC_CODE16:	Descriptor	0, 0ffffh, DA_C
 LABEL_DESC_DATA:	Descriptor	0, DataLen-1, DA_DRW
-LABEL_DESC_STACK:	Descriptor	0, TopOfStack, DA_DRWA+DA_32
+LABEL_DESC_STACK:	Descriptor	0, TopOfStack, DA_DRWA|DA_32
 LABEL_DESC_TEST:	Descriptor 0500000h, 0ffffh, DA_DRW
 LABEL_DESC_VIDEO:	Descriptor 0B8000h, 0ffffh, DA_DRW
-LABEL_DESC_PAGE_DIR:	Descriptor PageDirBase, 4095, DA_DRW
-LABEL_DESC_PAGE_TBL:	Descriptor PageTblBase, 4096*8-1, DA_DRW
+LABEL_DESC_FLAT_C:	Descriptor 	0, 0fffffh, DA_CR|DA_32|DA_LIMIT_4K
+LABEL_DESC_FLAT_RW:	Descriptor 	0, 0fffffh, DA_DRW|DA_LIMIT_4K
 
 GdtLen	equ	$-LABEL_GDT
 GdtPtr  dw	GdtLen-1
@@ -46,8 +54,8 @@ SelectorData	equ	LABEL_DESC_DATA - LABEL_GDT
 SelectorStack	equ	LABEL_DESC_STACK - LABEL_GDT
 SelectorTest	equ	LABEL_DESC_TEST - LABEL_GDT
 SelectorVideo	equ	LABEL_DESC_VIDEO - LABEL_GDT
-SelectorPageDir	equ	LABEL_DESC_PAGE_DIR - LABEL_GDT
-SelectorPageTbl	equ	LABEL_DESC_PAGE_TBL - LABEL_GDT
+SelectorFlatC	equ	LABEL_DESC_FLAT_C- LABEL_GDT
+SelectorFlatRW	equ	LABEL_DESC_FLAT_RW- LABEL_GDT
 
 [SECTION .data1]
 ALIGN 32
@@ -73,6 +81,7 @@ ARDStruct		equ	_ARDStruct - $$
 	dwLengthLow	equ	_dwLengthLow - $$
 	dwLengthHigh	equ	_dwLengthHigh - $$
 	dwType		equ	_dwType - $$
+PageTableNumber		equ	_PageTableNumber-$$
 
 _MemChkBuf:	times 256 db 0
 _szRAMSize:	db "RAM size:", 0
@@ -88,6 +97,7 @@ _ARDStruct:
 	_dwLengthLow:		dd 0
 	_dwLengthHigh:		dd 0
 	_dwType:		dd 0
+_PageTableNumber		dd 0
 
 DataLen			equ	$-LABEL_DATA
 
@@ -231,7 +241,7 @@ LABEL_SEG_CODE32:
 	;xchg bx, bx
 
 	call DispMemSize
-	call SetupPaging
+	call PagingDemo
 
 	jmp SelectorCode16:0
 
@@ -313,26 +323,23 @@ SetupPaging:
 	jz .no_remainder
 	inc ecx
 .no_remainder:
-	push ecx
+	mov [PageTableNumber], ecx
 
-	mov ax, SelectorPageDir
+	mov ax, SelectorFlatRW
 	mov es, ax
-	mov ecx, 1024
-	xor edi, edi
+	mov edi, PageDirBase0
 	xor eax, eax
-	mov eax, PageTblBase | PG_P | PG_USU | PG_RWW
+	mov eax, PageTblBase0 | PG_P | PG_USU | PG_RWW
 .1:
 	stosd
 	add eax, 4096
 	loop .1
 
-	mov ax, SelectorPageTbl
-	mov es, ax
-	pop eax
+	mov eax, [PageTableNumber]
 	mov ebx, 1024
 	mul ebx
 	mov ecx, eax
-	xor edi, edi
+	mov edi, PageTblBase0
 	xor eax, eax
 	mov eax, PG_P | PG_USU | PG_RWW
 
@@ -341,7 +348,7 @@ SetupPaging:
 	add eax, 4096
 	loop .2
 
-	mov eax, PageDirBase
+	mov eax, PageDirBase0
 	mov cr3, eax
 	mov eax, cr0
 	or eax, 80000000h
@@ -352,6 +359,118 @@ SetupPaging:
 	nop
 
 	ret
+
+PagingDemo:
+	mov ax, cs
+	mov ds, ax
+	mov ax, SelectorFlatRW
+	mov es, ax
+
+	push LenFoo
+	push OffsetFoo
+	push ProcFoo
+	call MemCpy
+	add esp, 12
+
+	push LenBar
+	push OffsetBar
+	push ProcBar
+	call MemCpy
+	add esp, 12
+
+	push LenPagingDemoAll
+	push OffsetPagingDemoProc
+	push ProcPagingDemo
+	call MemCpy
+	add esp, 12
+
+	mov ax, SelectorData
+	mov ds, ax
+	mov es, ax
+
+	call SetupPaging
+
+	call SelectorFlatC:ProcPagingDemo
+	call PSwitch
+	call SelectorFlatC:ProcPagingDemo
+
+	ret
+
+PSwitch:
+	mov ax, SelectorFlatRW
+	mov es, ax
+	mov edi, PageDirBase1
+	xor eax, eax
+	mov eax, PageTblBase1|PG_P|PG_USU|PG_RWW
+	mov ecx, [PageTableNumber]
+.1:
+	stosd
+	add eax, 4096
+	loop .1
+
+	mov eax, [PageTableNumber]
+	mov ebx, 1024
+	mul ebx
+	mov ecx, eax
+	mov edi, PageTblBase1
+	xor eax, eax
+	mov eax, PG_P|PG_USU|PG_RWW
+.2:
+	stosd
+	add eax, 4096
+	loop .2
+
+	mov eax, LinearAddrDemo
+	shr eax, 22
+	mov ebx, 4096
+	mul ebx
+	mov ecx, eax
+	mov eax, LinearAddrDemo
+	shr eax, 12
+	and eax, 03FFh
+	mov ebx, 4
+	mul ebx
+	add eax, ecx
+	add eax, PageTblBase1
+	mov dword [es:eax], ProcBar|PG_P|PG_USU|PG_RWW
+
+	mov eax, PageDirBase1
+	mov cr3, eax
+	jmp short .3
+.3:
+	nop
+
+	ret
+
+PagingDemoProc:
+OffsetPagingDemoProc	equ	PagingDemoProc-$$
+	mov eax, LinearAddrDemo
+	call eax
+	retf
+LenPagingDemoAll	equ	$-PagingDemoProc
+
+foo:
+OffsetFoo	equ	foo-$$
+	mov ah, 0Ch
+	mov al, 'F'
+	mov [gs:((80*17+0)*2)], ax
+	mov al, 'o'
+	mov [gs:((80*17+1)*2)], ax
+	mov [gs:((80*17+2)*2)], ax
+	ret
+LenFoo		equ $-foo
+
+bar:
+OffsetBar	equ	bar-$$
+	mov ah, 0Ch
+	mov al, 'B'
+	mov [gs:((80*18+0)*2)], ax
+	mov al, 'a'
+	mov [gs:((80*18+1)*2)], ax
+	mov al, 'r'
+	mov [gs:((80*18+2)*2)], ax
+	ret
+LenBar		equ	$-bar
 
 TestRead:
 	xor esi, esi
@@ -468,6 +587,39 @@ DispMemSize:
 	pop ecx
 	pop edi
 	pop esi
+	ret
+
+MemCpy:
+	push ebp
+	mov ebp, esp
+
+	push esi
+	push edi
+	push ecx
+
+	mov edi, [ebp+8]
+	mov esi, [ebp+12]
+	mov ecx, [ebp+16]
+.1:
+	cmp ecx, 0
+	jz .2
+
+	mov al, [ds:esi]
+	inc esi
+	mov byte [es:edi], al
+	inc edi
+
+	dec ecx
+	jmp .1
+.2:
+	mov eax, [ebp+8]
+
+	pop ecx
+	pop edi
+	pop esi
+	mov esp, ebp
+	pop ebp
+
 	ret
 
 SegCode32Len equ $-LABEL_SEG_CODE32
