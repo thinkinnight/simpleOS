@@ -257,6 +257,9 @@ LABEL_SEG_CODE32:
 
 	mov esp, TopOfStack
 
+	call Init8259A
+	int 080h
+
 	;xchg bx, bx
 
 	push szPMMessage
