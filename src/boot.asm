@@ -69,7 +69,11 @@ SelectorFlatRW	equ	LABEL_DESC_FLAT_RW- LABEL_GDT
 ALIGN 32
 [BITS 32]
 LABEL_IDT:
-%rep 128
+%rep 32
+	Gate	SelectorCode32, SpuriousHandler, 0, DA_386IGate
+%endrep
+.020h:	Gate	SelectorCode32, ClockHandler, 0, DA_386IGate
+%rep 95
 	Gate	SelectorCode32, SpuriousHandler, 0, DA_386IGate
 %endrep
 .080h:	Gate	SelectorCode32, UserIntHandler, 0, DA_386IGate
@@ -260,6 +264,7 @@ LABEL_SEG_CODE32:
 
 	call Init8259A
 	int 080h
+	sti
 	jmp $
 
 	;xchg bx, bx
@@ -408,6 +413,13 @@ UserIntHandler	equ	_UserIntHandler-$$
 	mov ah, 0Ch
 	mov al, 'I'
 	mov [gs:((80*0+70)*2)],ax
+	iretd
+
+_ClockHandler:
+ClockHandler	equ	_ClockHandler-$$
+	inc byte [gs:((80*0+70)*2)]
+	mov al, 20h
+	out 20h, al
 	iretd
 
 SetupPaging:
