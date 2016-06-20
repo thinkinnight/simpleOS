@@ -9,6 +9,7 @@ tag管理：
 - 06_ring3 进入ring3
 - 07_ring3_gatecall 在ring3做调用门,调用ring0
 - 08_ldt_backtoreal 使用LDT局部任务返回实模式
+- 09_getmemory 这个程序和书上得到的内存分布不同，具体原因不清楚是否是程序问题还是版本不同造成的。
 
 
 
