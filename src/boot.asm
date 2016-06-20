@@ -33,7 +33,7 @@ LABEL_DESC_STACK:	Descriptor	0, TopOfStack, DA_DRWA+DA_32
 LABEL_DESC_TEST:	Descriptor 0500000h, 0ffffh, DA_DRW
 LABEL_DESC_VIDEO:	Descriptor 0B8000h, 0ffffh, DA_DRW
 LABEL_DESC_PAGE_DIR:	Descriptor PageDirBase, 4095, DA_DRW
-LABEL_DESC_PAGE_TBL:	Descriptor PageTblBase, 1023, DA_DRW|DA_LIMIT_4K
+LABEL_DESC_PAGE_TBL:	Descriptor PageTblBase, 4096*8-1, DA_DRW
 
 GdtLen	equ	$-LABEL_GDT
 GdtPtr  dw	GdtLen-1
@@ -304,6 +304,17 @@ DispStr:
 	ret
 
 SetupPaging:
+	xor edx, edx
+	mov eax, [dwMemSize]
+	mov ebx, 400000h
+	div ebx
+	mov ecx, eax
+	test edx, edx
+	jz .no_remainder
+	inc ecx
+.no_remainder:
+	push ecx
+
 	mov ax, SelectorPageDir
 	mov es, ax
 	mov ecx, 1024
@@ -317,7 +328,10 @@ SetupPaging:
 
 	mov ax, SelectorPageTbl
 	mov es, ax
-	mov ecx, 1024*1024
+	pop eax
+	mov ebx, 1024
+	mul ebx
+	mov ecx, eax
 	xor edi, edi
 	xor eax, eax
 	mov eax, PG_P | PG_USU | PG_RWW
