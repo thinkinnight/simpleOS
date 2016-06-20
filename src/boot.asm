@@ -6,12 +6,20 @@
 	db	(%1>>24)&0FFh
 %endmacro
 
+%macro Gate 4
+	dw (%2 & 0FFFFh)
+	dw %1
+	dw (%3 & 1Fh) | ((%4<<8)&0FF00h)
+	dw ((%2>>16)&0FFFFh)
+%endmacro
+
 DA_32	equ 4000h
 DA_C	equ 98h
 DA_CR	equ 9Ah
 DA_DRW	equ 92h
 DA_DRWA equ 93h
 DA_LIMIT_4K equ 8000h
+DA_386IGate	equ	8Eh
 
 PG_P	equ 1
 PG_USU	equ 4
@@ -56,6 +64,18 @@ SelectorTest	equ	LABEL_DESC_TEST - LABEL_GDT
 SelectorVideo	equ	LABEL_DESC_VIDEO - LABEL_GDT
 SelectorFlatC	equ	LABEL_DESC_FLAT_C- LABEL_GDT
 SelectorFlatRW	equ	LABEL_DESC_FLAT_RW- LABEL_GDT
+
+[SECTION .idt]
+ALIGN 32
+[BITS 32]
+LABEL_IDT:
+%rep 255
+	Gate	SelectorCode32, SpuriousHandler, 0, DA_386IGate
+%endrep
+
+IdtLen		equ	$-LABEL_IDT
+IdtPtr		dw	IdtLen-1
+		dd	0
 
 [SECTION .data1]
 ALIGN 32
@@ -176,15 +196,24 @@ LABEL_MEM_CHK_OK:
 	mov	byte [LABEL_DESC_STACK + 4], al
 	mov	byte [LABEL_DESC_STACK + 7], ah
 
+
 	xor eax, eax
 	mov ax, ds
 	shl eax, 4
 	add eax, LABEL_GDT
 	mov dword [GdtPtr+2], eax
 
+	xor eax, eax
+	mov ax, ds
+	shl eax, 4
+	add eax, LABEL_IDT
+	mov dword[IdtPtr+2], eax
+
 	lgdt [GdtPtr]
 
 	cli
+
+	lidt [IdtPtr]
 
 	in al, 92h
 	or al, 00000010b
@@ -312,6 +341,62 @@ DispStr:
 	pop ebx
 	pop ebp
 	ret
+
+Init8259A:
+	mov al, 011h
+	out 020h, al
+	call io_delay
+
+	out 0A0h, al
+	call io_delay
+
+	mov al, 020h
+	out 021h, al
+	call io_delay
+
+	mov al, 028h
+	out 0A1h, al
+	call io_delay
+
+	mov al, 004h
+	out 021h, al
+	call io_delay
+
+	mov al, 002h
+	out 0A1h, al
+	call io_delay
+	
+	mov al, 001h
+	out 021h, al
+	call io_delay
+
+	out 0A1h, al
+	call io_delay
+
+	mov al, 11111110b
+	out 021h, al
+	call io_delay
+	
+	mov al, 11111111b
+	out 0A1h, al
+	call io_delay
+
+	ret
+
+io_delay:
+	nop
+	nop
+	nop
+	nop
+	ret
+
+_SpuriousHandler:
+SpuriousHandler	equ	_SpuriousHandler-$$
+	mov ah, 0Ch
+	mov al, '|'
+	mov [gs:((80*0+75)*2)],ax
+	jmp $
+	iretd
 
 SetupPaging:
 	xor edx, edx
