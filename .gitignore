@@ -3,8 +3,10 @@
 *.bin
 *.com
 
+*.o
+hello
+
 a.img
 freedos.img
 
 bochsout.txt
-
