@@ -16,6 +16,7 @@ BaseOfLoader		equ	09000h
 OffsetOfLoader		equ	0100h
 RootDirSectors		equ	14
 SectorNoOfRootDirectory	equ	19
+SectorNoOfFAT1		equ	1
 
 jmp short LABEL_START
 nop
@@ -148,6 +149,51 @@ ReadSector:
 	add esp, 2
 	pop bp
 
+	ret
+
+GetFATEntry:
+	push	es
+	push	bx
+	push	ax
+	mov	ax, BaseOfLoader; `.
+	sub	ax, 0100h	;  | 在 BaseOfLoader 后面留出 4K 空间用于存放 FAT
+	mov	es, ax		; /
+	pop	ax
+	mov	byte [bOdd], 0
+	mov	bx, 3
+	mul	bx			; dx:ax = ax * 3
+	mov	bx, 2
+	div	bx			; dx:ax / 2  ==>  ax <- 商, dx <- 余数
+	cmp	dx, 0
+	jz	LABEL_EVEN
+	mov	byte [bOdd], 1
+LABEL_EVEN:;偶数
+	; 现在 ax 中是 FATEntry 在 FAT 中的偏移量,下面来
+	; 计算 FATEntry 在哪个扇区中(FAT占用不止一个扇区)
+	xor	dx, dx			
+	mov	bx, [BPB_BytsPerSec]
+	div	bx ; dx:ax / BPB_BytsPerSec
+		   ;  ax <- 商 (FATEntry 所在的扇区相对于 FAT 的扇区号)
+		   ;  dx <- 余数 (FATEntry 在扇区内的偏移)。
+	push	dx
+	mov	bx, 0 ; bx <- 0 于是, es:bx = (BaseOfLoader - 100):00
+	add	ax, SectorNoOfFAT1 ; 此句之后的 ax 就是 FATEntry 所在的扇区号
+	mov	cl, 2
+	call	ReadSector ; 读取 FATEntry 所在的扇区, 一次读两个, 避免在边界
+			   ; 发生错误, 因为一个 FATEntry 可能跨越两个扇区
+	pop	dx
+	add	bx, dx
+	mov	ax, [es:bx]
+	cmp	byte [bOdd], 1
+	jnz	LABEL_EVEN_2
+	shr	ax, 4
+LABEL_EVEN_2:
+	and	ax, 0FFFh
+
+LABEL_GET_FAT_ENRY_OK:
+
+	pop	bx
+	pop	es
 	ret
 
 wRootDirSizeForLoop	dw	RootDirSectors
