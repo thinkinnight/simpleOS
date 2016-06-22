@@ -17,6 +17,7 @@ OffsetOfLoader		equ	0100h
 RootDirSectors		equ	14
 SectorNoOfRootDirectory	equ	19
 SectorNoOfFAT1		equ	1
+DeltaSectorNo		equ	17
 
 jmp short LABEL_START
 nop
@@ -107,7 +108,46 @@ LABEL_NO_LOADERBIN:
 %endif
 
 LABEL_FILENAME_FOUND:			; 找到 LOADER.BIN 后便来到这里继续
-	jmp	$			; 代码暂时停在这里
+	mov ax, RootDirSectors
+	and di, 0FFE0h
+	add di, 01Ah
+	mov cx, word [es:di]
+	push cx
+	add cx, ax
+	add cx, DeltaSectorNo
+	mov ax, BaseOfLoader
+	mov es, ax
+	mov bx, OffsetOfLoader
+	mov ax, cx
+
+LABEL_GOON_LOADING_FILE:
+	push ax
+	push bx
+	mov ah, 0Eh
+	mov al, '.'
+	mov bl, 0Fh
+	int 10h
+	pop bx
+	pop ax
+
+	mov cl, 1
+	call ReadSector
+	pop ax
+	call GetFATEntry
+	cmp ax, 0FFFh
+	jz LABEL_FILE_LOADED
+	push ax
+	mov dx, RootDirSectors
+	add ax, dx
+	add ax, DeltaSectorNo
+	add bx, [BPB_BytsPerSec]
+	jmp LABEL_GOON_LOADING_FILE
+
+LABEL_FILE_LOADED:
+	mov dh, 1
+	call DispStr
+
+	jmp BaseOfLoader:OffsetOfLoader
 
 DispStr:
 	mov	ax, MessageLength
