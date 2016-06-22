@@ -49,6 +49,15 @@ LABEL_START:
 	mov ss, ax
 	mov sp, BaseOfStack
 
+	mov ax, 0600h
+	mov bx, 0700h
+	mov cx, 0
+	mov dx, 0184fh
+	int 10h
+
+	mov dh, 0
+	call DispStr
+
 	xor ah, ah
 	xor dl, dl
 	int 13h
