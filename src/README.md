@@ -12,4 +12,6 @@ tag管理：
 - 09_getmemory 这个程序和书上得到的内存分布不同，具体原因不清楚是否是程序问题还是版本不同造成的。
 
 
-
+nasm -f elf32 hello.o hello.asm
+gcc -c -o bar.o bar.c -m32
+ld -s -o foobar hello.o bar.o -m elf_i386

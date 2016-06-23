@@ -5,6 +5,7 @@
 
 *.o
 hello
+foobar
 
 a.img
 freedos.img
