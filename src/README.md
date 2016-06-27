@@ -15,3 +15,26 @@ tag管理：
 nasm -f elf32 hello.o hello.asm
 gcc -c -o bar.o bar.c -m32
 ld -s -o foobar hello.o bar.o -m elf_i386
+
+# 重新整理思路 #
+这里面第三章和第五章的内容很多，最好是一次性完成，现在看到第五章147页，感觉需要重新整理思路。
+同时过了一下书评，发现很多人推荐赵炯的Linux内核剖析，那现在关于操作系统方面：
+1. OrangeOS
+2. 赵炯
+3. 日本人的那本
+4. ULK
+5. Linux2.6内核上下册，浙大的那本
+
+其他汇编以及Intel CPU参考手册等不提
+
+工具和环境
+1. bochs
+2. qemu
+3. 调试工具
+
+背景知识
+1. 保护模式
+2. 内存
+3. 汇编
+4. 中断
+
